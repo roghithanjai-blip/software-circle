@@ -12,7 +12,9 @@ move activity "Hello Git" to phase "Foundations" at 2
 publish phase "Foundations" all
 
 teams open "Git Pairing" size=3 until=2026-12-05 checkpoint="Hello Git"
-teams close | autoform | dissolve
+teams close      # stop formation, teams stay
+teams autoform   # place everyone still without a team
+teams dissolve   # end the round and free everyone
 team assign "Asha" to "Team Alpha"
 assign activity "Branch Battle" to teams due=2026-12-10`;
 

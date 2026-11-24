@@ -1,6 +1,7 @@
 // admin.js: admin app entry. Only routes that exist appear in the nav.
 import { el, sb, boot, NAV, toast, empty, timeAgo, bar } from './core.js';
 import { terminalView } from './terminal.js';
+import { journeyView } from './editor.js';
 import { reviewView } from './review.js';
 import { probationersView } from './probationers.js';
 
@@ -37,18 +38,19 @@ async function overview(main, profile) {
   const copyCmd = (kind, title) => el('button', { class: 'btn ghost', title: 'Copy an edit command for the terminal', onclick: async () => {
     try { await navigator.clipboard.writeText(`edit ${kind} "${title.replace(/"/g, '\\"')}" set `); toast('Edit command copied. Paste it in the Terminal.', 'ok'); }
     catch { toast('Could not copy; select and copy manually.', 'bad'); }
-  } }, 'Edit');
+  } }, 'Copy cmd');
+  const editLink = () => el('a', { class: 'btn ghost', href: '#/journey' }, 'Edit');
   const chip = s => el('span', { class: 'chip ' + ({ published: 'ok', draft: 'warn' }[s] || '') }, s);
 
   const map = phases.length ? el('div', { class: 'route' }, phases.map(p => el('div', { class: 'stop ' + (p.status === 'published' && p.visible ? 'done' : p.status === 'archived' ? 'locked' : '') },
     el('details', { open: p.status !== 'archived' },
       el('summary', {}, el('h3', {}, `${p.icon || ''} ${p.title}`.trim()), chip(p.status), p.status === 'published' && !p.visible ? el('span', { class: 'chip' }, 'hidden') : null,
-        p.est_duration ? el('span', { class: 'muted' }, p.est_duration) : null, copyCmd('phase', p.title)),
+        p.est_duration ? el('span', { class: 'muted' }, p.est_duration) : null, editLink(), copyCmd('phase', p.title)),
       el('div', { class: 'acts' }, p.activities.filter(a => a.status !== 'archived').length
         ? p.activities.filter(a => a.status !== 'archived').map(a => el('div', { class: 'arow' },
             el('span', { class: 'grow' }, a.title), el('span', { class: 'chip info' }, a.kind), chip(a.status),
-            el('span', { class: 'muted' }, `${stepCount(a)} steps`), el('span', { class: 'chip' }, `${finishers(a)}/${members} finished`), copyCmd('activity', a.title)))
-        : el('p', { class: 'muted', style: { padding: '6px 10px' } }, 'No activities yet.')))))
+            el('span', { class: 'muted' }, `${stepCount(a)} steps`), el('span', { class: 'chip' }, `${finishers(a)}/${members} finished`), editLink(), copyCmd('activity', a.title)))
+        : el('p', { class: 'muted', style: { padding: '6px 10px' } }, 'No activities yet.'))))))
     : empty('No phases yet', 'Open the Terminal and describe your first phase.', el('a', { class: 'btn primary', href: '#/terminal' }, 'Open terminal'));
 
   const runs = el('div', { class: 'card stack' }, el('h3', {}, 'Recent terminal runs'),
@@ -64,6 +66,7 @@ async function overview(main, profile) {
     el('div', { class: 'grid' }, runs, q)));
 }
 
-const routes = { '#/': overview, '#/terminal': (main) => terminalView(main), '#/review': (main) => reviewView(main), '#/probationers': (main, p) => probationersView(main, p) };
+const routes = { '#/': overview, '#/journey': (main) => journeyView(main), '#/terminal': (main) => terminalView(main), '#/review': (main) => reviewView(main), '#/probationers': (main, p) => probationersView(main, p) };
+NAV.admin.splice(1, 0, ['#/journey', 'Journey', 'route']);
 NAV.admin = NAV.admin.filter(([href]) => routes[href]);   // hide pages that are not built yet
 boot(document.getElementById('app'), { role: 'admin', routes });

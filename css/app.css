@@ -118,3 +118,21 @@ label{display:grid;gap:6px;font-size:.85rem;color:var(--muted)}
 .stop .acts{display:grid;gap:2px;margin-top:10px}
 .acts .arow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:var(--r-sm)}
 .acts .arow:hover{background:var(--raised)}.acts .arow .grow{flex:1;min-width:160px}
+
+.empty .btn{display:inline-block;margin-top:14px}
+
+/* Journey editor */
+input[type=checkbox]{width:auto}
+.pe summary{list-style:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pe summary::-webkit-details-marker{display:none}
+.title-in{font:650 1.02rem var(--font-display);background:transparent;border-color:transparent;flex:1;min-width:160px;width:auto}
+.title-in:hover,.title-in:focus{background:var(--bg);border-color:var(--line)}
+.mini{padding:2px 8px;min-width:28px}
+.srow{display:grid;grid-template-columns:auto 1.2fr 2fr 150px auto auto;gap:8px;align-items:center;padding:3px 0}
+.srow input:not([type=checkbox]),.srow select{padding:7px 10px}
+.srow.gone{opacity:.45}
+.chk{display:flex;gap:8px;align-items:center}
+.dlg{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;width:min(560px,92vw)}
+.dlg::backdrop{background:rgba(5,8,16,.65)}
+.dlg form{display:grid;gap:12px}
+@media(max-width:900px){.srow{grid-template-columns:auto 1fr}.srow>*:nth-child(n+3){grid-column:1/-1}}

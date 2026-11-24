@@ -152,7 +152,10 @@ export function parse(text) {
         const sub = rest[0]?.v?.toLowerCase(); const s = scan(rest.slice(1));
         need(['open', 'close', 'autoform', 'dissolve'].includes(sub), 'teams open | close | autoform | dissolve');
         if (sub === 'open') cmds.push(clean({ op: 'teams_open', name: s.strs[0], ...pick(s.opts, ALLOWED.teams_open, 'teams open') }));
-        else cmds.push({ op: 'teams_' + sub });
+        else {
+          need(!s.words.length && !s.strs.length && !Object.keys(s.opts).length, `teams ${sub} takes nothing after it (one command per line)`);
+          cmds.push({ op: 'teams_' + sub });
+        }
       } else if (cmd === 'team') {
         const sub = rest[0]?.v?.toLowerCase(); const s = scan(rest.slice(1));
         need(['create', 'assign', 'remove'].includes(sub), 'team create | assign | remove');
