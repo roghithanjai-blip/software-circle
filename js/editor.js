@@ -1,5 +1,6 @@
 // editor.js: GUI journey editor. Edits the same tables the terminal does, so both stay in sync.
 import { el, sb, rpc, toast, empty } from './core.js';
+import { deploySwitch } from './roadmaps.js';
 
 const KINDS = ['Build', 'Explore', 'Research', 'Challenge', 'Collaboration'];
 const COMP = [['self', 'Self-complete'], ['evidence', 'Screenshot'], ['link', 'Link'], ['review', 'Admin review']];
@@ -7,7 +8,7 @@ const STATUS = [['draft', 'Draft'], ['published', 'Published'], ['archived', 'Ar
 const byPos = (a, b) => (a.position - b.position) || String(a.id).localeCompare(String(b.id));
 const nextPos = rows => rows.reduce((m, r) => Math.max(m, r.position || 0), 0) + 1;
 const open = new Set();
-let root, showArch = false, refocus = null, lastComp = 'self', inited = false;
+let root, RID = null, RM = null, showArch = false, refocus = null, lastComp = 'self', inited = false;
 
 async function save(table, id, patch) {
   const { error } = await sb.from(table).update(patch).eq('id', id);
@@ -19,6 +20,7 @@ function inline(table, row, key, ph, cls = '') {
   i.addEventListener('change', async () => {
     const v = i.value.trim();
     if (key === 'title' && !v) { i.value = row.title; return toast('A title is required.', 'bad'); }
+    if (/link$/.test(key) && v && !/^https?:\/\//.test(v)) { i.value = row[key] || ''; return toast('The link must start with http:// or https://', 'bad'); }
     if (await save(table, row.id, { [key]: v || null })) { row[key] = v || null; toast('Saved', 'ok'); } else i.value = row[key] || '';
   });
   return i;
@@ -138,9 +140,9 @@ function activityView(a, acts) {
 }
 async function publish(p, on) {
   try {
-    const r = await rpc('apply_commands', { p_cmds: [{ op: on ? 'publish' : 'unpublish', target: 'phase', match: p.title, cascade: on }], p_script: `${on ? 'publish' : 'unpublish'} phase "${p.title}"${on ? ' all' : ''}  # from the editor`, p_dry: false });
+    const r = await rpc('apply_commands', { p_cmds: [{ op: on ? 'publish' : 'unpublish', target: 'phase', match: p.title, roadmap: RM.title, cascade: on }], p_script: `${on ? 'publish' : 'unpublish'} phase "${p.title}" in roadmap "${RM.title}"${on ? ' all' : ''}  # from the editor`, p_dry: false });
     if (!r.ok) return toast(r.error || 'Could not change publishing.', 'bad');
-    toast(on ? 'Published. Members were notified.' : 'Unpublished.', 'ok'); draw();
+    toast(on ? 'Released.' : 'Held back.', 'ok'); draw();
   } catch {}
 }
 function phaseView(p, phases) {
@@ -157,7 +159,7 @@ function phaseView(p, phases) {
   const d = el('details', { class: 'card pe', open: open.has(p.id) },
     el('summary', {}, arrows('phases', phases, p), icon, inline('phases', p, 'title', 'Phase title', 'title-in'),
       el('span', { class: 'chip ' + (live ? 'ok' : p.status === 'draft' ? 'warn' : '') }, live ? 'live' : p.status === 'published' ? 'hidden' : p.status),
-      el('button', { class: 'btn ' + (live ? 'ghost' : 'primary'), onclick: () => publish(p, !live) }, live ? 'Unpublish' : 'Publish'),
+      el('button', { class: 'btn ' + (live ? 'ghost' : 'primary'), title: 'Hold back a phase while the roadmap is deployed', onclick: () => publish(p, !live) }, live ? 'Hold back' : 'Release'),
       el('button', { class: 'btn ghost', onclick: () => phaseForm(p, phases) }, 'Details'), archBtn('phases', p)),
     acts.length ? acts.map(a => activityView(a, acts)) : el('p', { class: 'muted', style: { marginTop: '14px' } }, 'No activities yet. Add the first one below.'),
     el('div', { class: 'row', style: { marginTop: '18px' } }, el('div', { style: { flex: 1, minWidth: '220px' } }, t), el('button', { class: 'btn', onclick: addAct }, 'Add activity')));
@@ -166,23 +168,52 @@ function phaseView(p, phases) {
 }
 
 async function draw() {
-  const { data, error } = await sb.from('phases').select('*, activities(*, steps(*))').order('position');
-  if (error) return root.replaceChildren(empty('Could not load the journey', error.message));
-  const phases = data.sort(byPos).filter(p => showArch || p.status !== 'archived');
+  const [rmq, rolesq, phq] = await Promise.all([
+    sb.from('roadmaps').select('*').eq('id', RID).maybeSingle(),
+    sb.from('roles').select('key,label,rank').order('rank'),
+    sb.from('phases').select('*, activities(*, steps(*))').eq('roadmap_id', RID).order('position'),
+  ]);
+  const err = rmq.error || phq.error;
+  if (err) return root.replaceChildren(empty('Could not load this roadmap', err.message));
+  if (!rmq.data) return root.replaceChildren(empty('Roadmap not found', 'It may have been archived or deleted.', el('a', { class: 'btn', href: '#/roadmaps' }, 'Back to roadmaps')));
+  RM = rmq.data;
+  const data = phq.data, phases = data.sort(byPos).filter(p => showArch || p.status !== 'archived');
   if (!inited && phases[0]) { open.add(phases[0].id); inited = true; }
+
   const np = el('input', { placeholder: 'New phase title, then Enter' });
   const addPhase = async () => {
     if (!np.value.trim()) return;
-    const { error: e } = await sb.from('phases').insert({ position: nextPos(data), title: np.value.trim() });
+    const { error: e } = await sb.from('phases').insert({ roadmap_id: RID, position: nextPos(data), title: np.value.trim() });
     if (e) return toast(e.message, 'bad'); draw();
   };
   np.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); addPhase(); } });
   const arch = el('input', { type: 'checkbox', checked: showArch, onchange: ev => { showArch = ev.target.checked; draw(); } });
+
+  const chip = (label, on, fn) => el('button', { class: 'btn ' + (on ? 'primary' : 'ghost'), type: 'button', 'aria-pressed': String(on), onclick: fn }, label);
+  const setAudience = async list => { if (await save('roadmaps', RM.id, { audience: list })) { RM.audience = list; draw(); } };
+  const iconIn = inline('roadmaps', RM, 'icon', 'Icon'); iconIn.style.cssText = 'width:54px;text-align:center';
+  const liveCount = () => data.filter(p => p.status !== 'archived').length;
+
   root.replaceChildren(
-    el('div', {}, el('h1', {}, 'Journey editor'), el('p', { class: 'muted' }, 'Edit anything here, or use the Terminal for bulk changes. New content stays draft until you publish it.')),
+    el('a', { href: '#/roadmaps' }, '← Roadmaps'),
+    el('div', { class: 'card stack' },
+      el('div', { class: 'row', style: { flexWrap: 'nowrap' } }, iconIn, inline('roadmaps', RM, 'title', 'Roadmap title', 'title-in'),
+        el('span', { class: 'muted' }, RM.deployed ? 'Deployed' : 'Not yet deployed'), deploySwitch(RM, liveCount, draw),
+        el('button', { class: 'btn ghost danger', onclick: async () => {
+          if (!confirm('Archive this roadmap? It is hidden from everyone and members keep their progress.')) return;
+          if (await save('roadmaps', RM.id, { archived: true, deployed: false })) location.hash = '#/roadmaps';
+        } }, 'Archive')),
+      inline('roadmaps', RM, 'summary', 'One-line summary'),
+      el('div', { class: 'grid' }, inline('roadmaps', RM, 'curator_name', 'Curator name'), inline('roadmaps', RM, 'curator_title', 'Curator role, e.g. ML Engineer, Acme'),
+        inline('roadmaps', RM, 'curator_link', 'Curator profile link (optional)'), inline('roadmaps', RM, 'est_duration', 'Estimated duration, e.g. 8 weeks')),
+      el('div', { class: 'row' }, el('span', { class: 'muted' }, 'Who can see it:'), chip('Everyone', !RM.audience.length, () => setAudience([])),
+        ...rolesq.data.map(r => chip(r.label, RM.audience.includes(r.key), () => setAudience(RM.audience.includes(r.key) ? RM.audience.filter(k => k !== r.key) : [...RM.audience, r.key]))))),
     el('div', { class: 'row' }, el('div', { style: { flex: 1, minWidth: '220px' } }, np), el('button', { class: 'btn primary', onclick: addPhase }, 'Add phase'),
       el('label', { class: 'chk muted' }, arch, 'Show archived'), el('a', { class: 'btn ghost', href: '#/terminal' }, 'Open terminal')),
-    ...(phases.length ? phases.map(p => phaseView(p, phases)) : [empty('No phases yet', 'Type a title above and press Enter.')]));
+    ...(phases.length ? phases.map(p => phaseView(p, phases)) : [empty('No phases yet', 'Type a title above and press Enter. A roadmap needs a phase before it can be deployed.')]));
   if (refocus) { root.querySelector(`[data-add="${refocus}"]`)?.focus(); refocus = null; }
 }
-export async function journeyView(main) { root = el('div', { class: 'stack', style: { gap: '18px' } }); main.replaceChildren(root); await draw(); }
+export async function roadmapEditor(main, me, hash) {
+  RID = hash.split('/')[2]; open.clear(); inited = false; showArch = false;
+  root = el('div', { class: 'stack', style: { gap: '18px' } }); main.replaceChildren(root); await draw();
+}

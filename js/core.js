@@ -92,7 +92,6 @@ export async function me() {
   if (!session) return null;
   const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
   if (error) { toast('Could not load your profile: ' + error.message, 'bad'); return null; }
-  sb.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', data.id).then(() => {});
   return { ...data, email: session.user.email };
 }
 export const signOut = async () => { await sb.auth.signOut(); location.hash = ''; location.reload(); };
@@ -132,7 +131,7 @@ export const NAV = {
 export function shell(root, role, items = NAV[role]) {
   const route = location.hash || '#/';
   const main = el('main', { class: 'main', id: 'view' });
-  const links = items.map(([href, label, ic]) => el('a', { class: 'nav' + (href === route ? ' active' : ''), href, 'aria-label': label }, icon(ic), el('span', {}, label)));
+  const links = items.map(([href, label, ic]) => el('a', { class: 'nav' + (href === route || (href !== '#/' && route.startsWith(href + '/')) ? ' active' : ''), href, 'aria-label': label }, icon(ic), el('span', {}, label)));
   const rail = el('nav', { class: 'rail' }, el('div', { class: 'brand' }, el('i'), el('span', {}, CONFIG.BRAND)), links, el('div', { class: 'spacer' }),
     el('button', { class: 'nav btn ghost', onclick: toggleTheme, 'aria-label': 'Toggle theme' }, icon('sun'), el('span', {}, 'Theme')),
     el('button', { class: 'nav btn ghost', onclick: signOut, 'aria-label': 'Sign out' }, icon('out'), el('span', {}, 'Sign out')));
@@ -143,9 +142,11 @@ export function shell(root, role, items = NAV[role]) {
 export function startRouter(root, role, routes, profile) {
   const draw = async () => {
     const main = shell(root, role);
-    const h = routes[location.hash || '#/'] || routes['#/'];
+    const hash = location.hash || '#/';
+    const wild = Object.keys(routes).filter(k => k.endsWith('/*') && hash.startsWith(k.slice(0, -1))).sort((a, b) => b.length - a.length)[0];
+    const h = routes[hash] || routes[wild] || routes['#/'];
     main.replaceChildren(skeleton());
-    try { main.replaceChildren(); await h(main, profile); }
+    try { main.replaceChildren(); await h(main, profile, hash); }
     catch (e) { main.replaceChildren(empty('Something went wrong', e.message || 'Try reloading the page.')); }
   };
   addEventListener('hashchange', draw); draw();
@@ -157,6 +158,7 @@ export async function boot(root, { role, routes, onMember }) {
   const go = async () => {
     const p = await me();
     if (!p) return root.replaceChildren(authView(go));
+    try { if (!sessionStorage.getItem('logged')) { sessionStorage.setItem('logged', '1'); sb.rpc('log_login', { p_agent: navigator.userAgent }).then(() => {}); } } catch {}
     if (role === 'admin' && p.role !== 'admin') return root.replaceChildren(el('div', { class: 'auth' }, el('h1', {}, 'Admins only'), el('p', { class: 'muted' }, 'This area is for circle admins.'), el('a', { class: 'btn', href: 'index.html', style: { display: 'inline-block', marginTop: '14px' } }, 'Back to my journey')));
     if (role === 'member' && p.role === 'admin' && !location.search.includes('as=member')) return location.replace('admin.html');
     startRouter(root, role, routes, p);

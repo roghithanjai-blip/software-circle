@@ -38,7 +38,9 @@ create trigger on_auth_user_created after insert on auth.users
 -- Members may edit their profile but never their own role.
 create or replace function protect_role() returns trigger language plpgsql as $$
 begin
-  if new.role is distinct from old.role and not is_admin() then
+  -- auth.uid() is null for the SQL editor / service role, which is how the first admin is created.
+  -- API users always carry a JWT, so they are still blocked unless they are already admins.
+  if new.role is distinct from old.role and auth.uid() is not null and not is_admin() then
     raise exception 'role can only be changed by an admin';
   end if;
   return new;

@@ -2,19 +2,21 @@
 import { el, sb, rpc, toast, timeAgo, empty } from './core.js';
 import { parse } from './parser.js';
 
-const HELP = `phase "Foundations" icon=🚀 dur="2 weeks"
-  activity "Hello Git" kind=build dur="2h" out="A repo with one commit"
-    step "Install git" | Run git --version | self
-    step "Show your log" | Screenshot git log | evidence review
+const HELP = `roadmap "Machine Learning" curator="Dr. Kavya Rao" curator_title="ML Engineer, Acme" dur="8 weeks" sum="Train your first model" audience=member,probationer
+  phase "Foundations" dur="2 weeks" desc="Python and data"
+    activity "Clean a dataset" kind=build dur="3h" out="A cleaned notebook"
+      step "Set up the environment" | Create a venv, install pandas | self
+      step "Share your notebook" | Push it and submit the link | link
+      step "Show the plot" | Screenshot the chart | evidence review
 
-edit step "Install git" in activity "Hello Git" set title="Set up git"
-move activity "Hello Git" to phase "Foundations" at 2
-publish phase "Foundations" all
+edit roadmap "Machine Learning" set curator="New Name"
+edit phase "Foundations" in roadmap "Machine Learning" set desc="New text"
+move phase "Foundations" in roadmap "Machine Learning" at 2
+deploy roadmap "Machine Learning"       # members see it from now on
+undeploy roadmap "Machine Learning"
 
-teams open "Git Pairing" size=3 until=2026-12-05 checkpoint="Hello Git"
+teams open "Git Pairing" size=3 until=2026-12-05
 teams close      # stop formation, teams stay
-teams autoform   # place everyone still without a team
-teams dissolve   # end the round and free everyone
 team assign "Asha" to "Team Alpha"
 assign activity "Branch Battle" to teams due=2026-12-10`;
 

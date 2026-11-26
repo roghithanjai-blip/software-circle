@@ -1,7 +1,8 @@
 // admin.js: admin app entry. Only routes that exist appear in the nav.
 import { el, sb, boot, NAV, toast, empty, timeAgo, bar } from './core.js';
 import { terminalView } from './terminal.js';
-import { journeyView } from './editor.js';
+import { roadmapEditor } from './editor.js';
+import { roadmapsView } from './roadmaps.js';
 import { reviewView } from './review.js';
 import { probationersView } from './probationers.js';
 
@@ -16,16 +17,14 @@ async function overview(main, profile) {
     sb.from('terminal_log').select('ok,script,created_at').order('created_at', { ascending: false }).limit(6),
     sb.from('profiles').select('full_name,last_active_at').eq('role', 'member').order('last_active_at', { ascending: true, nullsFirst: true }).limit(5),
     sb.from('phases').select('id,title,icon,status,visible,position,est_duration,activities(id,title,kind,status,position,steps(id,archived))').order('position'),
-    sb.from('step_progress').select('user_id,step_id').eq('status', 'completed').limit(10000),
+    sb.rpc('activity_finishers'),
   ]);
   if (tree.error) throw tree.error;
   const phases = tree.data.map(p => ({ ...p, activities: [...p.activities].sort((a, b) => a.position - b.position) }));
   const acts = phases.flatMap(p => p.activities).filter(a => a.status !== 'archived');
   const stepCount = a => a.steps.filter(s => !s.archived).length;
-  const stepAct = new Map(); acts.forEach(a => a.steps.forEach(s => stepAct.set(s.id, a.id)));
-  const byAct = new Map();   // activity -> (user -> completed steps)
-  (done.data || []).forEach(r => { const a = stepAct.get(r.step_id); if (!a) return; const m = byAct.get(a) || new Map(); m.set(r.user_id, (m.get(r.user_id) || 0) + 1); byAct.set(a, m); });
-  const finishers = a => { const n = stepCount(a); return n ? [...(byAct.get(a.id)?.values() || [])].filter(c => c >= n).length : 0; };
+  const fin = new Map((done.data || []).map(r => [r.activity_id, r.finishers]));
+  const finishers = a => fin.get(a.id) || 0;
 
   const stat = (n, label) => el('div', { class: 'stat' }, el('b', {}, n), el('span', {}, label));
   const live = phases.filter(p => p.status === 'published' && p.visible).length;
@@ -39,7 +38,7 @@ async function overview(main, profile) {
     try { await navigator.clipboard.writeText(`edit ${kind} "${title.replace(/"/g, '\\"')}" set `); toast('Edit command copied. Paste it in the Terminal.', 'ok'); }
     catch { toast('Could not copy; select and copy manually.', 'bad'); }
   } }, 'Copy cmd');
-  const editLink = () => el('a', { class: 'btn ghost', href: '#/journey' }, 'Edit');
+  const editLink = () => el('a', { class: 'btn ghost', href: '#/roadmaps' }, 'Edit');
   const chip = s => el('span', { class: 'chip ' + ({ published: 'ok', draft: 'warn' }[s] || '') }, s);
 
   const map = phases.length ? el('div', { class: 'route' }, phases.map(p => el('div', { class: 'stop ' + (p.status === 'published' && p.visible ? 'done' : p.status === 'archived' ? 'locked' : '') },
@@ -66,7 +65,7 @@ async function overview(main, profile) {
     el('div', { class: 'grid' }, runs, q)));
 }
 
-const routes = { '#/': overview, '#/journey': (main) => journeyView(main), '#/terminal': (main) => terminalView(main), '#/review': (main) => reviewView(main), '#/probationers': (main, p) => probationersView(main, p) };
-NAV.admin.splice(1, 0, ['#/journey', 'Journey', 'route']);
+const routes = { '#/': overview, '#/roadmaps': (main) => roadmapsView(main), '#/roadmaps/*': roadmapEditor, '#/terminal': (main) => terminalView(main), '#/review': (main) => reviewView(main), '#/probationers': (main, p) => probationersView(main, p) };
+NAV.admin.splice(1, 0, ['#/roadmaps', 'Roadmaps', 'route']);
 NAV.admin = NAV.admin.filter(([href]) => routes[href]);   // hide pages that are not built yet
 boot(document.getElementById('app'), { role: 'admin', routes });

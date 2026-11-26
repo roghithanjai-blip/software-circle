@@ -2,18 +2,17 @@
 import { el, sb, toast, empty, timeAgo, skeleton } from './core.js';
 
 const SEL = 'id,image_path,link_url,status,feedback,created_at,author:profiles!submissions_user_id_fkey(full_name),step:steps(title,completion,activity:activities(title))';
-const safeUrl = u => /^https?:\/\//.test(u || '') ? u : null;
+const safeUrl = u => /^https?:\/\/[^/@\s]+(\/\S*)?$/.test(u || '') ? u : null;
 
 export async function reviewView(main) {
-  let mode = 'submitted';
+  let mode = 'submitted', urls = {};
   const list = el('div', { class: 'stack' });
   const tab = (m, label) => el('button', { class: 'btn ' + (mode === m ? 'primary' : 'ghost'), onclick: () => { mode = m; draw(); load(); } }, label);
   const tabs = el('div', { class: 'row' });
   const draw = () => tabs.replaceChildren(tab('submitted', 'Waiting'), tab('reviewed', 'Reviewed'));
 
   async function card(s) {
-    let img = null;
-    if (s.image_path) { const { data } = await sb.storage.from('evidence').createSignedUrl(s.image_path, 600); img = data?.signedUrl || null; }
+    const img = urls[s.image_path] || null;
     const link = safeUrl(s.link_url);
     const fb = el('textarea', { rows: 2, placeholder: 'Feedback for the member (optional)' });
     const decide = async status => {
@@ -39,6 +38,9 @@ export async function reviewView(main) {
     const { data, error } = await q;
     if (error) return list.replaceChildren(empty('Could not load submissions', error.message));
     if (!data.length) return list.replaceChildren(empty(mode === 'submitted' ? 'Nothing waiting' : 'No reviews yet', mode === 'submitted' ? 'New evidence appears here, oldest first.' : 'Reviewed submissions show up here.'));
+    urls = {};
+    const paths = data.map(s => s.image_path).filter(Boolean);
+    if (paths.length) { const { data: sg } = await sb.storage.from('evidence').createSignedUrls(paths, 600); (sg || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; }); }
     list.replaceChildren(...await Promise.all(data.map(card)));
   }
   draw(); main.replaceChildren(el('div', { class: 'stack' }, el('div', {}, el('h1', {}, 'Evidence'), el('p', { class: 'muted' }, 'Approve or send back. Members are notified either way.')), tabs, list));

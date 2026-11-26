@@ -11,23 +11,20 @@ export async function probationersView(main, me) {
   const root = el('div', { class: 'stack' }); main.replaceChildren(root);
 
   async function load() {
-    const [pr, tree, prog, subs, members] = await Promise.all([
+    const [pr, prog, subs, members] = await Promise.all([
       sb.from('probations').select('user_id,start_date,end_date,outcome,decision_note,p:profiles!probations_user_id_fkey(full_name,last_active_at,github_url)'),
-      sb.from('phases').select('position,status,visible,activities(id,title,status,position,steps(id,archived))').eq('status', 'published').eq('visible', true).order('position'),
-      sb.from('step_progress').select('user_id,step_id').eq('status', 'completed').limit(20000),
+      sb.rpc('probation_progress'),   // counted in the database, not by downloading every completed step
       sb.from('submissions').select('user_id').eq('status', 'submitted'),
       sb.from('profiles').select('id,full_name').eq('role', 'member').order('full_name'),
     ]);
-    const err = [pr, tree, prog, subs, members].find(r => r.error); if (err) throw err.error;
-    const acts = tree.data.flatMap(p => [...p.activities].sort((a, b) => a.position - b.position)).filter(a => a.status === 'published')
-      .map(a => ({ id: a.id, title: a.title, steps: a.steps.filter(s => !s.archived).map(s => s.id) })).filter(a => a.steps.length);
-    const total = acts.reduce((n, a) => n + a.steps.length, 0);
-    const done = new Map(); prog.data.forEach(r => { (done.get(r.user_id) || done.set(r.user_id, new Set()).get(r.user_id)).add(r.step_id); });
+    const err = [pr, prog, subs, members].find(r => r.error); if (err) throw err.error;
+    const by = new Map(); prog.data.forEach(r => (by.get(r.user_id) || by.set(r.user_id, []).get(r.user_id)).push(r));
     const pend = new Map(); subs.data.forEach(r => pend.set(r.user_id, (pend.get(r.user_id) || 0) + 1));
     const rows = pr.data.map(r => {
-      const d = done.get(r.user_id) || new Set(), left = acts.filter(a => !a.steps.every(s => d.has(s)));
-      const n = acts.reduce((c, a) => c + a.steps.filter(s => d.has(s)).length, 0);
-      return { ...r, name: r.p?.full_name || 'Unnamed', done: n, total, pct: total ? Math.round(100 * n / total) : 0, left, current: left[0]?.title || (total ? 'All complete' : 'Nothing published'), pending: pend.get(r.user_id) || 0, last: r.p?.last_active_at };
+      const acts = by.get(r.user_id) || [], total = acts.reduce((n, a) => n + a.total, 0), n = acts.reduce((c, a) => c + a.done, 0);
+      const left = acts.filter(a => a.done < a.total).map(a => ({ title: a.activity_title }));
+      return { ...r, name: r.p?.full_name || 'Unnamed', done: n, total, pct: total ? Math.round(100 * n / total) : 0, left,
+        current: left[0]?.title || (total ? 'All complete' : 'Nothing published'), pending: pend.get(r.user_id) || 0, last: r.p?.last_active_at };
     });
     return { rows, free: members.data.filter(m => !pr.data.some(r => r.user_id === m.id)) };
   }
