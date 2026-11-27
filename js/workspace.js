@@ -72,7 +72,7 @@ export async function activityView(main, me, hash) {
   } }, 'Send')));
 
   main.replaceChildren(el('div', { class: 'stack', style: { gap: '22px', maxWidth: '760px' } },
-    el('a', { href: '#/journey' }, '← Journey'),
+    el('a', { href: '#/roadmap/' + a.phase.roadmap_id }, '← ' + a.phase.title),
     el('div', {}, el('p', { class: 'muted' }, a.phase.title), el('h1', {}, a.title), el('div', { class: 'row', style: { marginTop: '10px' } }, el('span', { class: 'chip info' }, a.kind), a.est_duration ? el('span', { class: 'muted' }, a.est_duration) : null, el('span', { class: 'muted' }, `${a.done}/${a.steps.length} steps`))),
     bar(100 * a.done / a.steps.length),
     el('div', { class: 'cols' }, a.objective ? el('div', {}, el('h3', {}, 'Objective'), el('p', { class: 'muted' }, a.objective)) : null, a.deliverable ? el('div', {}, el('h3', {}, 'You will produce'), el('p', { class: 'muted' }, a.deliverable)) : null),

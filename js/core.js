@@ -36,6 +36,7 @@ const ICONS = {
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
+  bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7M10 20a2 2 0 0 0 4 0"/>',
   out: '<path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',
 };
@@ -78,7 +79,7 @@ export function toggleTheme() {
   const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = t; try { localStorage.setItem('theme', t); } catch {}
 }
-document.head.append(el('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;650&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@400&display=swap' }));
+document.head.append(el('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;650&family=Instrument+Sans:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap' }));
 
 // ---------- Data + auth ----------
 // Admin rights are decided by RLS and the SQL functions. The role check here only chooses which screen to show.
@@ -128,20 +129,22 @@ export const NAV = {
   member: [['#/', 'Dashboard', 'home'], ['#/journey', 'Journey', 'route'], ['#/leaderboard', 'Leaderboard', 'trophy'], ['team.html', 'Team', 'users'], ['#/profile', 'Profile', 'user']],
   admin: [['#/', 'Overview', 'home'], ['#/terminal', 'Terminal', 'terminal'], ['#/probationers', 'Probationers', 'users'], ['#/review', 'Evidence', 'inbox'], ['#/feedback', 'Feedback', 'chat'], ['#/settings', 'Settings', 'gear']],
 };
-export function shell(root, role, items = NAV[role]) {
+let TOPBAR = null;
+export const setTopbar = fn => { TOPBAR = fn; };   // optional bar above each screen, set by the member app
+export function shell(root, role, items = NAV[role], profile = null) {
   const route = location.hash || '#/';
   const main = el('main', { class: 'main', id: 'view' });
   const links = items.map(([href, label, ic]) => el('a', { class: 'nav' + (href === route || (href !== '#/' && route.startsWith(href + '/')) ? ' active' : ''), href, 'aria-label': label }, icon(ic), el('span', {}, label)));
   const rail = el('nav', { class: 'rail' }, el('div', { class: 'brand' }, el('i'), el('span', {}, CONFIG.BRAND)), links, el('div', { class: 'spacer' }),
     el('button', { class: 'nav btn ghost', onclick: toggleTheme, 'aria-label': 'Toggle theme' }, icon('sun'), el('span', {}, 'Theme')),
     el('button', { class: 'nav btn ghost', onclick: signOut, 'aria-label': 'Sign out' }, icon('out'), el('span', {}, 'Sign out')));
-  root.replaceChildren(el('div', { class: 'shell' }, rail, main));
+  root.replaceChildren(el('div', { class: 'shell' }, rail, el('div', { class: 'col' }, TOPBAR && profile ? TOPBAR(profile, route) : null, main)));
   return main;
 }
 // routes: { '#/': async (main) => {...}, '#/journey': ... }. Re-renders on hash change.
 export function startRouter(root, role, routes, profile) {
   const draw = async () => {
-    const main = shell(root, role);
+    const main = shell(root, role, NAV[role], profile);
     const hash = location.hash || '#/';
     const wild = Object.keys(routes).filter(k => k.endsWith('/*') && hash.startsWith(k.slice(0, -1))).sort((a, b) => b.length - a.length)[0];
     const h = routes[hash] || routes[wild] || routes['#/'];

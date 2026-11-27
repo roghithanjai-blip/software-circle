@@ -1,0 +1,50 @@
+/* moss.css: the Stitch "Software Circle" look for the member app only (index.html). Admin keeps app.css as is. */
+body.moss{
+  --bg:#0d100b;--surface:#141811;--raised:#1b2017;--line:#2a3124;
+  --text:#e0e4d8;--muted:#9a9880;--signal:#b89b5e;--signal-ink:#0d100b;--info:#b9c5f2;--ok:#68b684;--warn:#e2c382;--bad:#ffb4ab;
+  --r-sm:4px;--r-md:6px;--r-lg:8px;
+  --font-display:'Plus Jakarta Sans',system-ui,sans-serif;--font-body:'Plus Jakarta Sans',system-ui,sans-serif;--font-mono:'JetBrains Mono',ui-monospace,monospace;
+  font-size:14px}
+[data-theme=light] body.moss{--bg:#f3f1e8;--surface:#fbfaf4;--raised:#edeadd;--line:#d6d2bf;--text:#1b2017;--muted:#5e5c48;--signal:#8f7437;--signal-ink:#fbfaf4;--info:#39456b;--ok:#2e7d4f;--warn:#8a6a1c;--bad:#a32626}
+.moss h1,.moss h2,.moss h3{font-weight:600}.moss h1{font-size:clamp(1.6rem,3vw,2.2rem);letter-spacing:-.02em}
+.mono,.moss .chip,.moss .rstate{font-family:var(--font-mono)}.mono{font-size:12px;letter-spacing:.02em}
+.brass{color:var(--signal)}.col{min-width:0}.spread{justify-content:space-between}
+/* shell + nav */
+.moss .rail{background:var(--surface)}
+.moss .nav.active{background:var(--signal);color:var(--signal-ink);box-shadow:none}.moss .nav.active svg{stroke:var(--signal-ink)}
+.moss .nav:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+.moss .brand i{border-radius:3px;box-shadow:none;width:22px;height:22px;background:var(--signal)}
+.topbar{display:flex;align-items:center;gap:14px;padding:12px clamp(16px,4vw,44px);border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
+.topbar .bell{position:relative;color:var(--muted);display:grid}.topbar .bell svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--signal);display:inline-block}.dot.off{background:var(--line)}.bell .dot{position:absolute;top:-2px;right:-2px}
+.who{display:flex;gap:10px;align-items:center;padding:4px 10px 4px 4px;border:1px solid var(--line);border-radius:var(--r-md);color:var(--text);line-height:1.2}.who:hover{text-decoration:none;background:var(--raised)}
+.who .mono{font-size:11px}.mini-av{width:30px;height:30px;border-radius:var(--r-md);object-fit:cover;background:var(--raised);display:grid;place-items:center;font-weight:600}
+/* controls */
+.moss .btn{border-radius:var(--r-sm);font-weight:500}.moss .btn.primary{background:var(--signal);color:var(--signal-ink)}.moss .btn:active{transform:translateY(1px)}
+.moss input,.moss textarea,.moss select{font-family:var(--font-mono);font-size:13px;background:var(--bg);border-radius:var(--r-sm)}
+.moss .chip{font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:var(--r-sm);padding:2px 7px}
+.moss .chip.ok{background:color-mix(in srgb,var(--ok) 14%,transparent)}.moss .chip.warn{background:color-mix(in srgb,var(--warn) 14%,transparent)}.moss .chip.bad{background:color-mix(in srgb,var(--bad) 18%,transparent)}
+.moss .ring .fg{stroke:var(--ok)}.moss .ring-wrap b{font-family:var(--font-mono);font-weight:500}.moss .bar>i{background:var(--signal)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}
+/* dashboard */
+.sec{display:flex;align-items:baseline;gap:10px}.secno{font:500 12px var(--font-mono);color:var(--signal)}
+.moss .mission{border-radius:var(--r-lg);border-left-width:3px}
+.rm-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.rm-card{display:grid;gap:22px;align-content:space-between;min-height:150px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);color:var(--text);transition:border-color .15s,background .15s,transform .15s var(--ease)}
+.rm-card:hover{text-decoration:none;border-color:color-mix(in srgb,var(--signal) 55%,var(--line));background:var(--raised);transform:translateY(-2px)}
+.rm-card h3{margin-top:4px}.st{text-transform:uppercase;font-size:10px;letter-spacing:.08em;color:var(--signal)}
+.st-Completed{color:var(--ok)}.st-Notstarted{color:var(--muted)}
+.lrow2{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);color:var(--text)}.lrow2:last-child{border-bottom:0}
+a.lrow2:hover{text-decoration:none;background:var(--raised)}a.panel.lrow2{padding:14px 16px;border:1px solid var(--line)}
+.moss .lb.me{color:var(--signal)}
+/* roadmap page */
+.hero{display:flex;gap:24px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:26px}
+.split{display:grid;gap:22px;grid-template-columns:minmax(0,1fr) 300px;align-items:start}@media(max-width:900px){.split{grid-template-columns:1fr}}
+.tl{display:grid;gap:18px}.tlp{display:grid;grid-template-columns:40px 1fr;gap:14px;position:relative}
+.tlp::before{content:"";position:absolute;left:19px;top:44px;bottom:-18px;width:1px;background:var(--line)}.tlp:last-child::before{display:none}
+.tln{width:38px;height:38px;border-radius:var(--r-md);display:grid;place-items:center;font:500 13px var(--font-mono);background:var(--raised);border:1px solid var(--line)}
+.tlp.done .tln{background:var(--ok);color:var(--bg);border-color:var(--ok)}.tlp.cur .tln{background:var(--signal);color:var(--signal-ink);border-color:var(--signal)}.tlp.locked{opacity:.5}
+.arow2{display:flex;gap:12px;align-items:center;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-md);color:var(--text)}
+a.arow2:hover{text-decoration:none;border-color:color-mix(in srgb,var(--signal) 55%,var(--line))}
+/* photo */
+.avatar{border-radius:var(--r-lg)}
